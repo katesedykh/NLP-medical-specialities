@@ -1,14 +1,15 @@
 import torch
+import pandas as pd
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
 from sklearn.model_selection import train_test_split
 from pso import PSO
 
-def train_and_evaluate_distilbert_model(params, train_dataloader, val_dataloader):
+def train_and_evaluate_distilbert_model(params, train_dataloader, val_dataloader, num_labels, save_model=Flase):
     learning_rate, dropout_prob, num_epochs = params
 
     # Load the DistilBERT model and tokenizer
     tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
+    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels)
 
     # Set up the optimizer and loss function
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
@@ -53,12 +54,25 @@ def train_and_evaluate_distilbert_model(params, train_dataloader, val_dataloader
         val_loss /= num_val_batches
         print(f"Epoch {epoch+1} | Train Loss: {loss.item():.4f} | Val Loss: {val_loss:.4f} | Val Accuracy: {val_accuracy:.4f}")
 
+    if save_model:
+        print("\nSaving the final model")
+        model.save_pretrained('distilbert_model')
     return val_accuracy
 
 
 # Define the text classification dataset
-texts = [...]  # a list of text samples
-labels = [...]  # a list of corresponding labels
+df = pd.read_csv("mtsamples.csv")
+df.dropna(inplace=True) # Drop any rows with missing values
+texts = df['transcriptions'].tolist() # a list of text samples
+labels = df['medical_specialty'].astype('category').cat.codes.tolist() # a list of corresponding labels
+num_labels = df['medical_specialty'].nunique()
+
+"""
+# Retrieve the medical specialty from an integer code
+code = 1  # Example code
+medical_specialty = categories.cat.categories[code]
+print("Medical specialty:", medical_specialty)
+"""
 
 # Split the dataset into training and validation sets
 train_texts, val_texts, train_labels, val_labels = train_test_split(texts, labels, test_size=0.2, random_state=42)
@@ -82,7 +96,7 @@ val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=16, shuffle
 
 # Define the objective function to optimize with PSO
 def objective_function(params):
-    return -train_and_evaluate_distilbert_model(params, train_dataloader, val_dataloader)
+    return -train_and_evaluate_distilbert_model(params, train_dataloader, val_dataloader, num_labels)
 
 # Define the hyperparameter ranges to search over
 param_ranges = [
@@ -98,31 +112,4 @@ pso = PSO(objective_function, param_ranges, num_particles=10, max_iter=50)
 best_params, best_score = pso.run()
 
 # Train the DistilBERT model with the optimal hyperparameters on the entire dataset
-tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
-optimizer = torch.optim.AdamW(model.parameters(), lr=best_params[0])
-loss_fn = torch.nn.CrossEntropyLoss()
-
-encodings = tokenizer(texts, truncation=True, padding=True)
-dataset = torch.utils.data.TensorDataset(
-    torch.tensor(encodings['input_ids']),
-    torch.tensor(encodings['attention_mask']),
-    torch.tensor(labels)
-)
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
-
-for epoch in range(best_params[2]):
-    for batch in dataloader:
-        input_ids = batch[0].to(device)
-        attention_mask = batch[1].to(device)
-        labels = batch[2].to(device)
-
-        optimizer.zero_grad()
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
-        loss = outputs.loss
-        logits = outputs.logits
-        loss.backward()
-        optimizer.step()
-
-# Save the trained model for future use
-model.save_pretrained('distilbert_model')
+train_and_evaluate_distilbert_model(params, train_dataloader, val_dataloader, num_labels, save_model=True)

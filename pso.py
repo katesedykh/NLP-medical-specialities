@@ -10,6 +10,7 @@ class PSO:
         self.c1 = c1
         self.c2 = c2
         self.w = w
+        self.logs = []
 
     def run(self):
         # Initialize the particles and their velocities
@@ -24,6 +25,7 @@ class PSO:
         for i in range(self.max_iter):
             # Evaluate the objective function for each particle
             particle_scores = np.array([self.objective_function(particle) for particle in particles])
+            self.logs.append(particle_scores)
 
             # Update the best positions and scores for each particle
             for j in range(self.num_particles):
@@ -46,7 +48,18 @@ class PSO:
                 # Ensure that the particles stay within the specified parameter ranges
                 particles[j] = np.clip(particles[j], self.param_ranges[:, 0], self.param_ranges[:, 1])
 
-        return global_best_particle_position, global_best_particle_score
+        return global_best_particle_position, global_best_particle_score, logs
+
 
     def _generate_particle(self):
         return np.array([random.uniform(param_range[0], param_range[1]) for param_range in self.param_ranges])
+
+
+    def plot_logs(self.):
+        """Plot logs and save the figure"""
+        plt.figure(figsize=(10, 5))
+        plt.plot(np.array(self.logs).T)
+        plt.xlabel("Iteration")
+        plt.title("Val accuracy")
+        plt.savefig("logs.png")
+        # plt.show()

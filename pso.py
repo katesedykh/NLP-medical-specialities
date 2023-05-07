@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import matplotlip.pyplot as plt
 
 class PSO:
     def __init__(self, objective_function, param_ranges, num_particles=10, max_iter=50, c1=2, c2=2, w=0.7):

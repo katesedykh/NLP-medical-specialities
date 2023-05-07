@@ -120,14 +120,15 @@ test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=64, shuff
 param_ranges = np.array([
     [1e-6, 1e-3],  # learning rate
     [0, 0.3],    # dropout probability
-    [5, 30]         # number of epochs
+    [5, 40]         # number of epochs
 ])
 
 # Set up the PSO algorithm with the objective function and hyperparameter ranges
-pso = PSO(objective_function, param_ranges, num_particles=2, max_iter=5)
+pso = PSO(objective_function, param_ranges, num_particles=20, max_iter=100)
 
 # Run the PSO algorithm to find the optimal hyperparameters
-best_params, best_score = pso.run()
+best_params, best_score, logs = pso.run()
+pso.plot_logs()
 
 # Train the DistilBERT model with the optimal hyperparameters on the entire dataset
 print(f"Best params: \nLearning rate {best_params[0]} \nDropout probability {best_params[1]} \nNum epochs {best_params[2]}")
